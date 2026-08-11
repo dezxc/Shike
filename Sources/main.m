@@ -60,6 +60,16 @@ static NSString *SKDurationText(NSInteger seconds) {
     return [NSString stringWithFormat:@"%ld分钟", (long)minutes];
 }
 
+static NSString *SKCalendarConvertedDurationText(NSInteger seconds) {
+    NSInteger totalMinutes = MAX(0, (NSInteger)llround((double)seconds / 60.0));
+    if (totalMinutes < 60) return nil;
+    NSInteger hours = totalMinutes / 60;
+    NSInteger minutes = totalMinutes % 60;
+    if (minutes == 0) return [NSString stringWithFormat:@"折合 %ld 小时", (long)hours];
+    return [NSString stringWithFormat:@"折合 %ld 小时 %ld 分钟",
+                                      (long)hours, (long)minutes];
+}
+
 static NSInteger SKShortBreakMinutesForFocusSeconds(NSInteger focusSeconds) {
     return MAX(1, (NSInteger)ceil(MAX(1, focusSeconds) / 300.0));
 }
@@ -861,9 +871,19 @@ static BOOL SKStatusPopoverShouldDismiss(NSWindow *eventWindow,
     NSDictionary *summaryStyle = @{NSFontAttributeName:[NSFont systemFontOfSize:11 weight:NSFontWeightRegular],
                                    NSForegroundColorAttributeName:NSColor.secondaryLabelColor};
     [summary drawAtPoint:NSMakePoint(14, summaryY + 43) withAttributes:summaryStyle];
+    NSString *convertedDuration = selectedRecords.count ?
+        SKCalendarConvertedDurationText(focusedSeconds) : nil;
+    if (convertedDuration.length) {
+        NSDictionary *convertedStyle =
+            @{NSFontAttributeName:[NSFont systemFontOfSize:10.5 weight:NSFontWeightMedium],
+              NSForegroundColorAttributeName:[NSColor.secondaryLabelColor colorWithAlphaComponent:0.86]};
+        [convertedDuration drawAtPoint:NSMakePoint(14, summaryY + 63)
+                        withAttributes:convertedStyle];
+    }
     NSDictionary *hintStyle = @{NSFontAttributeName:[NSFont systemFontOfSize:10 weight:NSFontWeightRegular],
                                 NSForegroundColorAttributeName:NSColor.tertiaryLabelColor};
-    [@"点击日期即可查看对应日或周" drawAtPoint:NSMakePoint(14, summaryY + 68)
+    CGFloat hintY = summaryY + (convertedDuration.length ? 86 : 68);
+    [@"点击日期即可查看对应日或周" drawAtPoint:NSMakePoint(14, hintY)
                               withAttributes:hintStyle];
 }
 

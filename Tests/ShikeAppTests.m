@@ -252,6 +252,11 @@ static void testBreakPromptStaysProminentAcrossApps(void) {
 static void testCalendarUsesReadableScrollableTimeline(void) {
     SKCalendarWindowController *controller =
         [[SKCalendarWindowController alloc] initWithRecords:@[]];
+    SKAppAssert(SKCalendarConvertedDurationText(59 * 60) == nil &&
+                [SKCalendarConvertedDurationText(60 * 60) isEqualToString:@"折合 1 小时"] &&
+                [SKCalendarConvertedDurationText(61 * 60) isEqualToString:@"折合 1 小时 1 分钟"] &&
+                [SKCalendarConvertedDurationText(175 * 60) isEqualToString:@"折合 2 小时 55 分钟"],
+                @"日历累计时长必须在保留总分钟数的同时正确换算小时与分钟，并处理整小时边界");
     SKAppAssert(SKCalendarHourHeight() >= 72 && SKCalendarTimelineHeight() >= 1200,
                 @"日历每小时高度必须足够宽松，使25分钟番茄具有清晰的视觉存在感");
     SKAppAssert(SKCalendarHeaderHeight() >= 72 && SKCalendarAllDayHeight() >= 34 &&
