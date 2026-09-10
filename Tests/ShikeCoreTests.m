@@ -44,7 +44,6 @@ static void testPersistenceRoundTrip(void) {
     task.tags = @[@"读书", @"学习"];
     [task.subtasks addObject:[SKSubtask subtaskWithTitle:@"回顾笔记" sortOrder:0]];
     store.shortBreakMinutes = 7;
-    store.longBreakEvery = 3;
     store.lastMeaningfulFocusAt = [NSDate dateWithTimeIntervalSince1970:2000];
 
     SKFocusRecord *record = [SKFocusRecord new];
@@ -71,8 +70,7 @@ static void testPersistenceRoundTrip(void) {
     SKAssert(reloaded.tasks.firstObject.pinned, @"任务置顶状态必须保留");
     SKAssert(reloaded.tasks.firstObject.estimatedPomos == 3, @"预计番茄数必须保留");
     SKAssert(reloaded.tasks.firstObject.subtasks.count == 1, @"子任务必须保留");
-    SKAssert(reloaded.shortBreakMinutes == 7 && reloaded.longBreakEvery == 3,
-             @"番茄偏好必须保留");
+    SKAssert(reloaded.shortBreakMinutes == 7, @"番茄偏好必须保留");
 }
 
 static void testSnapshotRestore(void) {
@@ -208,6 +206,8 @@ static void testCorruptPersistenceIsSanitized(void) {
                                 @"endedAt": @50, @"countedAsTomato": @YES }],
         @"settings": @{ @"soundVolume": @9, @"selectedSoundName": @"missing",
                          @"defaultWorkMinutes": @(-3), @"shortBreakMinutes": @999,
+                         @"longBreakMinutes": @10, @"longBreakEvery": @6,
+                         @"completedWorkSessions": @45,
                          @"lastMeaningfulFocusAt": [NSNull null] }
     };
     [[NSFileManager defaultManager] createDirectoryAtURL:[url URLByDeletingLastPathComponent]
@@ -223,6 +223,14 @@ static void testCorruptPersistenceIsSanitized(void) {
              @"声音设置必须限制到安全范围");
     SKAssert(store.defaultWorkMinutes == 1 && store.shortBreakMinutes == 60,
              @"番茄设置必须限制到安全范围");
+    SKAssert([store save:nil], @"兼容旧版长休息设置后应能正常保存");
+    NSDictionary *savedRoot = [NSJSONSerialization JSONObjectWithData:
+        [NSData dataWithContentsOfURL:url] options:0 error:nil];
+    NSDictionary *savedSettings = savedRoot[@"settings"];
+    SKAssert(savedSettings[@"longBreakMinutes"] == nil &&
+             savedSettings[@"longBreakEvery"] == nil &&
+             savedSettings[@"completedWorkSessions"] == nil,
+             @"旧版跨天累计长休息设置必须在下次保存时清理，不能继续影响计时");
     SKFocusRecord *record = store.records.firstObject;
     SKAssert(record.actualSeconds == 300 && !record.countedAsTomato,
              @"损坏记录的时长和番茄计数必须修正");

@@ -217,8 +217,6 @@ static BOOL SKValidSessionKind(NSString *kind) {
         _soundVolume = 0.75;
         _defaultWorkMinutes = 25;
         _shortBreakMinutes = 5;
-        _longBreakMinutes = 15;
-        _longBreakEvery = 4;
         _showCountdownInMenuBar = YES;
         _showDockIcon = YES;
         _popupNotifications = YES;
@@ -277,9 +275,6 @@ static BOOL SKValidSessionKind(NSString *kind) {
     if (settings[@"soundVolume"] != nil) self.soundVolume = MIN(1, MAX(0, [settings[@"soundVolume"] doubleValue]));
     if (settings[@"defaultWorkMinutes"] != nil) self.defaultWorkMinutes = MIN(180, MAX(1, [settings[@"defaultWorkMinutes"] integerValue]));
     if (settings[@"shortBreakMinutes"] != nil) self.shortBreakMinutes = MIN(60, MAX(1, [settings[@"shortBreakMinutes"] integerValue]));
-    if (settings[@"longBreakMinutes"] != nil) self.longBreakMinutes = MIN(60, MAX(1, [settings[@"longBreakMinutes"] integerValue]));
-    if (settings[@"longBreakEvery"] != nil) self.longBreakEvery = MIN(9, MAX(2, [settings[@"longBreakEvery"] integerValue]));
-    self.completedWorkSessions = MAX(0, [settings[@"completedWorkSessions"] integerValue]);
     self.endlessMode = [settings[@"endlessMode"] boolValue];
     if (settings[@"showCountdownInMenuBar"] != nil) self.showCountdownInMenuBar = [settings[@"showCountdownInMenuBar"] boolValue];
     if (settings[@"showDockIcon"] != nil) self.showDockIcon = [settings[@"showDockIcon"] boolValue];
@@ -301,9 +296,6 @@ static BOOL SKValidSessionKind(NSString *kind) {
         @"soundVolume": @(self.soundVolume),
         @"defaultWorkMinutes": @(self.defaultWorkMinutes),
         @"shortBreakMinutes": @(self.shortBreakMinutes),
-        @"longBreakMinutes": @(self.longBreakMinutes),
-        @"longBreakEvery": @(self.longBreakEvery),
-        @"completedWorkSessions": @(self.completedWorkSessions),
         @"endlessMode": @(self.endlessMode),
         @"showCountdownInMenuBar": @(self.showCountdownInMenuBar),
         @"showDockIcon": @(self.showDockIcon),

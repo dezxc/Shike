@@ -1429,8 +1429,6 @@ static BOOL SKStatusPopoverShouldDismiss(NSWindow *eventWindow,
 @property(nonatomic, strong) NSButton *notificationPermissionButton;
 @property(nonatomic, strong) NSButton *interruptionReasonCheckbox;
 @property(nonatomic, strong) NSPopUpButton *defaultWorkPopup;
-@property(nonatomic, strong) NSPopUpButton *longBreakPopup;
-@property(nonatomic, strong) NSPopUpButton *longBreakEveryPopup;
 @property(nonatomic, strong) NSPopUpButton *soundPopup;
 @property(nonatomic, strong) NSSlider *volumeSlider;
 @property(nonatomic, strong) NSSound *completionSound;
@@ -2052,35 +2050,22 @@ static BOOL SKStatusPopoverShouldDismiss(NSWindow *eventWindow,
     NSStackView *timerRules = [NSStackView new];
     timerRules.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     timerRules.spacing = 12;
-    NSArray<NSString *> *ruleTitles = @[@"默认专注", @"长休息", @"每几轮长休息"];
-    NSArray<NSArray<NSString *> *> *ruleValues = @[
-        @[@"15", @"20", @"25", @"30", @"45", @"50", @"60"],
-        @[@"10", @"15", @"20", @"30"],
-        @[@"2", @"3", @"4", @"5", @"6"]
-    ];
-    NSMutableArray<NSPopUpButton *> *rulePopups = [NSMutableArray array];
-    for (NSInteger index = 0; index < 3; index++) {
-        NSStackView *item = [NSStackView new];
-        item.orientation = NSUserInterfaceLayoutOrientationVertical;
-        item.alignment = NSLayoutAttributeLeading;
-        item.spacing = 4;
-        NSTextField *label = SKLabel(ruleTitles[(NSUInteger)index], 11, NSFontWeightMedium);
-        label.textColor = NSColor.secondaryLabelColor;
-        [item addArrangedSubview:label];
-        NSPopUpButton *popup = [NSPopUpButton new];
-        [popup addItemsWithTitles:ruleValues[(NSUInteger)index]];
-        popup.target = self;
-        popup.action = @selector(timerSettingChanged:);
-        [popup.widthAnchor constraintEqualToConstant:index == 2 ? 112 : 92].active = YES;
-        [item addArrangedSubview:popup];
-        [timerRules addArrangedSubview:item];
-        [rulePopups addObject:popup];
-    }
-    self.defaultWorkPopup = rulePopups[0];
-    self.longBreakPopup = rulePopups[1];
-    self.longBreakEveryPopup = rulePopups[2];
+    NSStackView *defaultWorkItem = [NSStackView new];
+    defaultWorkItem.orientation = NSUserInterfaceLayoutOrientationVertical;
+    defaultWorkItem.alignment = NSLayoutAttributeLeading;
+    defaultWorkItem.spacing = 4;
+    NSTextField *defaultWorkLabel = SKLabel(@"默认专注", 11, NSFontWeightMedium);
+    defaultWorkLabel.textColor = NSColor.secondaryLabelColor;
+    [defaultWorkItem addArrangedSubview:defaultWorkLabel];
+    self.defaultWorkPopup = [NSPopUpButton new];
+    [self.defaultWorkPopup addItemsWithTitles:@[@"15", @"20", @"25", @"30", @"45", @"50", @"60"]];
+    self.defaultWorkPopup.target = self;
+    self.defaultWorkPopup.action = @selector(timerSettingChanged:);
+    [self.defaultWorkPopup.widthAnchor constraintEqualToConstant:92].active = YES;
+    [defaultWorkItem addArrangedSubview:self.defaultWorkPopup];
+    [timerRules addArrangedSubview:defaultWorkItem];
     [column addArrangedSubview:timerRules];
-    NSTextField *breakRule = SKLabel(@"普通休息按本轮专注时长的 1/5 自动计算：25 分钟休息 5 分钟，5 分钟休息 1 分钟。",
+    NSTextField *breakRule = SKLabel(@"每轮休息只按刚结束的专注时长 1/5 计算：25 分钟休息 5 分钟，5 分钟休息 1 分钟，不跨天累计轮次。",
                                     11, NSFontWeightRegular);
     breakRule.textColor = NSColor.secondaryLabelColor;
     [column addArrangedSubview:breakRule];
@@ -2196,8 +2181,6 @@ static BOOL SKStatusPopoverShouldDismiss(NSWindow *eventWindow,
     self.popupNotificationsCheckbox.state = self.store.popupNotifications ? NSControlStateValueOn : NSControlStateValueOff;
     self.interruptionReasonCheckbox.state = self.store.recordInterruptionReason ? NSControlStateValueOn : NSControlStateValueOff;
     [self.defaultWorkPopup selectItemWithTitle:[NSString stringWithFormat:@"%ld", (long)self.store.defaultWorkMinutes]];
-    [self.longBreakPopup selectItemWithTitle:[NSString stringWithFormat:@"%ld", (long)self.store.longBreakMinutes]];
-    [self.longBreakEveryPopup selectItemWithTitle:[NSString stringWithFormat:@"%ld", (long)self.store.longBreakEvery]];
     [self.soundPopup selectItemWithTitle:self.store.selectedSoundName ?: @"Glass"];
     self.volumeSlider.doubleValue = self.store.soundVolume;
     [self refreshNotificationAuthorization];
@@ -2813,14 +2796,8 @@ static BOOL SKStatusPopoverShouldDismiss(NSWindow *eventWindow,
         }
     } else if (!aborted) {
         if (record) [self presentLogForRecord:record];
-        BOOL standardSession = [kind isEqualToString:SKSessionKindStandard];
-        if (standardSession) self.store.completedWorkSessions += 1;
-        BOOL longBreak = standardSession &&
-            self.store.completedWorkSessions % MAX(2, self.store.longBreakEvery) == 0;
-        SKSessionKind breakKind = longBreak ? SKSessionKindLongBreak : SKSessionKindShortBreak;
-        NSInteger breakMinutes = longBreak ? self.store.longBreakMinutes :
-            SKShortBreakMinutesForFocusSeconds(self.engine.plannedSeconds);
-        [self.engine prepareSessionKind:breakKind
+        NSInteger breakMinutes = SKShortBreakMinutesForFocusSeconds(self.engine.plannedSeconds);
+        [self.engine prepareSessionKind:SKSessionKindShortBreak
                         durationSeconds:breakMinutes * 60
                                  taskID:taskID
                               taskTitle:taskTitle
@@ -2989,8 +2966,6 @@ static BOOL SKStatusPopoverShouldDismiss(NSWindow *eventWindow,
 
 - (void)timerSettingChanged:(id)sender {
     self.store.defaultWorkMinutes = MAX(1, self.defaultWorkPopup.selectedItem.title.integerValue);
-    self.store.longBreakMinutes = MAX(1, self.longBreakPopup.selectedItem.title.integerValue);
-    self.store.longBreakEvery = MAX(2, self.longBreakEveryPopup.selectedItem.title.integerValue);
     [self.store save:nil];
     if ([self.engine.phase isEqualToString:SKTimerPhaseReady] &&
         [self.engine.sessionKind isEqualToString:SKSessionKindStandard]) {

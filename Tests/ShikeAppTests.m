@@ -102,23 +102,27 @@ static void testStandardCompletionAndBreakCadence(void) {
     [controller.engine startAtDate:start];
     [controller finishCurrentSessionAborted:NO atDate:[start dateByAddingTimeInterval:1500]];
     SKAppAssert(controller.store.records.firstObject.countedAsTomato, @"标准番茄完成后必须计数");
-    SKAppAssert(controller.store.completedWorkSessions == 1 &&
-                [controller.engine.sessionKind isEqualToString:SKSessionKindShortBreak] &&
+    SKAppAssert([controller.engine.sessionKind isEqualToString:SKSessionKindShortBreak] &&
                 [controller.engine.phase isEqualToString:SKTimerPhaseRunning] &&
                 controller.engine.plannedSeconds == 300,
                 @"25分钟标准番茄填写日志后必须自动开始5分钟短休息");
     SKAppAssert(controller.presentedLogs == 1, @"标准番茄完成后必须弹出日志");
 
     controller = SKTestController();
-    controller.store.completedWorkSessions = 3;
-    controller.store.longBreakEvery = 4;
-    [controller.engine prepareSessionKind:SKSessionKindStandard durationSeconds:1500
-                                   taskID:nil taskTitle:nil chainID:nil];
-    [controller.engine startAtDate:start];
-    [controller finishCurrentSessionAborted:NO atDate:[start dateByAddingTimeInterval:1500]];
-    SKAppAssert([controller.engine.sessionKind isEqualToString:SKSessionKindLongBreak] &&
-                [controller.engine.phase isEqualToString:SKTimerPhaseRunning],
-                @"达到轮次间隔后必须自动开始长休息");
+    for (NSInteger index = 0; index < 8; index++) {
+        NSDate *roundStart = [start dateByAddingTimeInterval:index * 3600];
+        [controller.engine prepareSessionKind:SKSessionKindStandard durationSeconds:1500
+                                       taskID:nil taskTitle:nil chainID:nil];
+        [controller.engine startAtDate:roundStart];
+        [controller finishCurrentSessionAborted:NO
+                                         atDate:[roundStart dateByAddingTimeInterval:1500]];
+        SKAppAssert([controller.engine.sessionKind isEqualToString:SKSessionKindShortBreak] &&
+                    [controller.engine.phase isEqualToString:SKTimerPhaseRunning] &&
+                    controller.engine.plannedSeconds == 300,
+                    @"无论累计完成多少轮，标准番茄都只能进入可预测的5分钟比例休息");
+    }
+    SKAppAssert(controller.store.records.count == 8 && controller.presentedLogs == 8,
+                @"移除长休息后不能影响连续番茄的记录和日志流程");
 }
 
 static void testCustomAndAbortFlows(void) {
